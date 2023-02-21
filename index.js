@@ -1,68 +1,78 @@
 import express from "express";
-import { v4 as uuidv4 } from "uuid";
+import connect from "./src/config/dbConnect.js";
+import UserModel from "./src/models/User.js";
 
 const app = express();
 
 app.use(express.json());
 
-let data = [];
+async function connectDb() {
+  try {
+    const db = await connect();
+    db.on("error", console.log.bind(console, "Erro de conexão"));
+    db.once("open", () => {
+      console.log("Conexão com o banco de dados estabelecida com sucesso");
+    });
+    app.listen(4000, () => {
+      console.log("O app está rodando na porta: 4000");
+    });
+  } catch (error) {
+    console.log(error);
+  }
+}
 
-app.get("/welcome", (req, res) => {
-  return res.status(200).json("Bem vindo!");
+app.get("/", async (req, res) => {
+  try {
+    const allUsers = await UserModel.find();
+    return res.status(200).json(allUsers);
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao buscar usuários." });
+  }
 });
 
-app.get("/", (req, res) => {
-  return res.status(200).json(data);
+app.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await UserModel.findById(id);
+    return res.status(200).json(user);
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao buscar usuário." });
+  }
 });
 
-app.post("/", (req, res) => {
-  let entry = { ...req.body, id: uuidv4() };
-
-  data.push(entry);
-
-  return res.status(201).json(entry);
+app.post("/", async (req, res) => {
+  try {
+    const newUser = new UserModel(req.body);
+    await newUser.save();
+    return res.status(201).json(newUser);
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-app.get("/:id", (req, res) => {
-  const { id } = req.params;
+app.put("/:id", async (req, res) => {
+  try {
+    let { id } = req.params;
+    let update = req.body;
 
-  const entry = data.find((entry) => {
-    return entry.id === id;
-  });
+     await UserModel.findByIdAndUpdate(id, update);
 
-  return res.status(200).json(entry);
+    return res.status(200).json({ message: "Usuário atualizado com sucesso" });
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-app.put("/:id", (req, res) => {
+app.delete("/:id", async (req, res) => {
+  try {
     let { id } = req.params;
 
-    let index;
+    await UserModel.findByIdAndDelete(id);
 
-    let entry = data.find((entry, i) => {
-        index = i;
-
-        return entry.id === id;
-    })
-
-    let updatedUser = {...entry, ...req.body };
-
-    data[index] = updatedUser
-
-    return res.status(200).json(updatedUser)
-})
-
-app.delete("/:id", (req, res) => {
-  let { id } = req.params;
-
-  let filtered = data.filter((currentData) => {
-    return currentData.id !== id;
-  });
-
-  data = filtered;
-
-  return res.status(200).json(data);
+    return res.status(200).json({ message: "Usuario excluido" });
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-app.listen(4000, () => {
-  console.log("O app está rodando na porta: 4000");
-});
+connectDb();
