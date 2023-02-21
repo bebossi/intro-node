@@ -55,7 +55,10 @@ app.put("/:id", async (req, res) => {
     let { id } = req.params;
     let update = req.body;
 
-     await UserModel.findByIdAndUpdate(id, update);
+     await UserModel.findByIdAndUpdate(id, update, {
+        new: true,
+        runValidators: true
+    });
 
     return res.status(200).json({ message: "Usuário atualizado com sucesso" });
   } catch (err) {
